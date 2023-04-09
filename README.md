@@ -18,11 +18,11 @@ These are tied together with a standard 4 wire SPI interface.
 In terms of keyboard interface, something something something  
   
 The DAC output of the FPGA requires a simple RC low pass, consisting of:  
-`DAC OUT -> [1k5 R] --> Output`
-`                    |        `
-`                [1nF Cap]    `
-`                    |        `
-`                   GND       `
+`DAC OUT -> [1k5 R] --> Output`  
+`                    |        `  
+`                [1nF Cap]    `  
+`                    |        `  
+`                   GND       `  
   
 Tying this output through a buffer opamp then to better filtering is  
 preffered, however even with no buffer a (distorted) low impedance  
