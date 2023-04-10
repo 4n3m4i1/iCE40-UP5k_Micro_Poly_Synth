@@ -66,20 +66,23 @@ module main_state_machine
 
 
 
+    reg [15:0]t_acc;
 
     initial begin
         spi_valid_write_edge_detect = 0;
     
         TXD_DATA = {(BYTE_W){1'b0}};
 
-        VOICE_0_DIV = 1024;
-        VOICE_1_DIV = 1024;
-        VOICE_2_DIV = 1024;
-        VOICE_3_DIV = 1024;
-        VOICE_4_DIV = 1024;
-        VOICE_5_DIV = 1024;
-        VOICE_6_DIV = 1024;
-        VOICE_7_DIV = 1024;
+        t_acc = 16'h0000;
+
+        VOICE_0_DIV = 16'h0000;
+        VOICE_1_DIV = 16'h0000;
+        VOICE_2_DIV = 16'h0000;
+        VOICE_3_DIV = 16'h0000;
+        VOICE_4_DIV = 16'h0000;
+        VOICE_5_DIV = 16'h0000;
+        VOICE_6_DIV = 16'h0000;
+        VOICE_7_DIV = 16'h0000;
     end
 
     
@@ -94,46 +97,71 @@ module main_state_machine
             casez (spi_bytes_recieved)
                 // Implicit Garbage on 1st byte sent back
                 6'b000000: TXD_DATA <= SPI_ACK;                                     // Send ACK
-                6'b000001: TXD_DATA <= { {(BYTE_W - 1){1'b0}}, valid_address_rqd};  // Send Address Valid
-                6'b000010: begin
+                6'b000001: begin
                     if(RXD_ADDRESS[(BYTE_W - 1)]) begin     // Write Command
+                        t_acc <= RXD_DATA;
+                        /*
                         case (RXD_ADDRESS[2:0])
-                            0: VOICE_0_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_1_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_2_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_3_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_4_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_5_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_6_DIV[15:8] <= RXD_DATA;
-                            0: VOICE_7_DIV[15:8] <= RXD_DATA;
+                            0: VOICE_0_DIV <= {RXD_DATA, VOICE_0_DIV[7:0]};
+                            0: VOICE_1_DIV <= {RXD_DATA, VOICE_1_DIV[7:0]};
+                            0: VOICE_2_DIV <= {RXD_DATA, VOICE_2_DIV[7:0]};
+                            0: VOICE_3_DIV <= {RXD_DATA, VOICE_3_DIV[7:0]};
+                            0: VOICE_4_DIV <= {RXD_DATA, VOICE_4_DIV[7:0]};
+                            0: VOICE_5_DIV <= {RXD_DATA, VOICE_5_DIV[7:0]};
+                            0: VOICE_6_DIV <= {RXD_DATA, VOICE_6_DIV[7:0]};
+                            0: VOICE_7_DIV <= {RXD_DATA, VOICE_7_DIV[7:0]};
                         endcase
+                        */
                     end
                     else begin                              // Read Command
-                    /*
                         case (RXD_ADDRESS[2:0])
-                            0:  TXD_DATA <= ZERO_BYTE;
-                            1:  TXD_DATA <= SYSCFG;
-                            2:  TXD_DATA <= RESERVED_FIELD;
-                            3:  TXD_DATA <= {comm_is_TX, comm_is_RX, COMMCFG[5:0]};
-                            4:  TXD_DATA <= RESERVED_FIELD;
-                            5:  TXD_DATA <= COMM_RX_FIFO_COUNT;
-                            6:  TXD_DATA <= RESERVED_FIELD;
-                            7:  TXD_DATA <= COMM_TX_FIFO_COUNT;
+                            0:  TXD_DATA <= VOICE_0_DIV[15:8];
+                            1:  TXD_DATA <= VOICE_1_DIV[15:8];
+                            2:  TXD_DATA <= VOICE_2_DIV[15:8];
+                            3:  TXD_DATA <= VOICE_3_DIV[15:8];
+                            4:  TXD_DATA <= VOICE_4_DIV[15:8];
+                            5:  TXD_DATA <= VOICE_5_DIV[15:8];
+                            6:  TXD_DATA <= VOICE_6_DIV[15:8];
+                            7:  TXD_DATA <= VOICE_7_DIV[15:8];
                         endcase
-                    */
                     end
                 end
-                6'b000011: begin
+                6'b000010: begin
                     if(RXD_ADDRESS[(BYTE_W - 1)]) begin     // Write Command
+                      //  t_acc <= {t_acc[7:0], RXD_DATA};
                         case (RXD_ADDRESS[2:0])
-                            0: VOICE_0_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_1_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_2_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_3_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_4_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_5_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_6_DIV[7:0] <= RXD_DATA;
-                            0: VOICE_7_DIV[7:0] <= RXD_DATA;
+                            0: VOICE_0_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_1_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_2_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_3_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_4_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_5_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_6_DIV <= {t_acc[7:0], RXD_DATA};
+                            0: VOICE_7_DIV <= {t_acc[7:0], RXD_DATA};
+                        endcase
+                        /*
+                        case (RXD_ADDRESS[2:0])
+                            0: VOICE_0_DIV <= {VOICE_0_DIV[15:8], RXD_DATA};
+                            0: VOICE_1_DIV <= {VOICE_1_DIV[15:8], RXD_DATA};
+                            0: VOICE_2_DIV <= {VOICE_2_DIV[15:8], RXD_DATA};
+                            0: VOICE_3_DIV <= {VOICE_3_DIV[15:8], RXD_DATA};
+                            0: VOICE_4_DIV <= {VOICE_4_DIV[15:8], RXD_DATA};
+                            0: VOICE_5_DIV <= {VOICE_5_DIV[15:8], RXD_DATA};
+                            0: VOICE_6_DIV <= {VOICE_6_DIV[15:8], RXD_DATA};
+                            0: VOICE_7_DIV <= {VOICE_7_DIV[15:8], RXD_DATA};
+                        endcase
+                        */
+                    end
+                    else begin                              // Read Command
+                        case (RXD_ADDRESS[2:0])
+                            0:  TXD_DATA <= VOICE_0_DIV[7:0];
+                            1:  TXD_DATA <= VOICE_1_DIV[7:0];
+                            2:  TXD_DATA <= VOICE_2_DIV[7:0];
+                            3:  TXD_DATA <= VOICE_3_DIV[7:0];
+                            4:  TXD_DATA <= VOICE_4_DIV[7:0];
+                            5:  TXD_DATA <= VOICE_5_DIV[7:0];
+                            6:  TXD_DATA <= VOICE_6_DIV[7:0];
+                            7:  TXD_DATA <= VOICE_7_DIV[7:0];
                         endcase
                     end
                 end

@@ -129,7 +129,8 @@ module fixed_1416_tri_bram
 
 
     initial begin
-        $readmemh("tri_table_16x256.mem", wavetable);
+        //$readmemh("tri_table_16x256.mem", wavetable);
+        $readmemh("sin_table_16x256.mem", wavetable);
     end
 
     always @ (posedge bram_clk) begin
@@ -156,7 +157,8 @@ module fixed_1416_sqr_bram
 
 
     initial begin
-        $readmemh("sqr_table_16x256.mem", wavetable);
+        //$readmemh("sqr_table_16x256.mem", wavetable);
+        $readmemh("sin_table_16x256.mem", wavetable);
     end
 
     always @ (posedge bram_clk) begin
@@ -183,7 +185,8 @@ module fixed_1416_saw_bram
 
 
     initial begin
-        $readmemh("saw_table_16x256.mem", wavetable);
+        //$readmemh("saw_table_16x256.mem", wavetable);
+        $readmemh("sin_table_16x256.mem", wavetable);
     end
 
     always @ (posedge bram_clk) begin
