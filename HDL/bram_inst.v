@@ -22,7 +22,7 @@ module TDM_BRAM_Interface
 
     reg [7:0]internal_bram_address;
 
-    wire [(DATA_W - 1):0] ram_interconnect [3:0];
+    wire [(D_W - 1):0] ram_interconnect [3:0];
 
     // States:
     //  0:  Load new address
@@ -71,6 +71,7 @@ module TDM_BRAM_Interface
 
 
     always @ (posedge sys_clk) begin
+        state <= ~state;
         if(state) begin
             internal_bram_address <= nco_addr_in;
         end
