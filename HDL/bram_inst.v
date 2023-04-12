@@ -1,6 +1,18 @@
 
-// All values in tables are fix14_16 format,
-//  bounded +/-1
+//Table values in fix15_u16 format,
+//  where SHAMT == 15
+
+/*
+    Memory addresses are setup on the rising edge of the clk,
+    and data is produced after the negative edge of the clock.
+    
+    If the clock can be run slow enough (it can, see channel_ctrl.v comments)
+    then this module can safely be assumed to run on the negative edge of the
+    system clock (48MHz), and all data propagation through
+    the module, specifically the channel_enabled parameter,
+    should be registered on the negative edge of the clock
+    to setup the initial pipeline stage on the following posedge
+*/
 module TDM_BRAM_Interface
 #(
     parameter D_W = 16,
@@ -14,21 +26,32 @@ module TDM_BRAM_Interface
 
     input [7:0]nco_addr_in,
 
-    output reg enable_DSP_in_phase,
+    input is_chan_en,
+    input [1:0]channel_num,
 
-    output reg [(D_W - 1):0]sample_d_out
+    output wire [(D_W - 1):0]sample_d_out,
+
+    output reg is_chan_en_out,
+    output reg [1:0]ch_assoc_w_data
 );
+
+    localparam SIN_SELECTED = 2'b00;
+    localparam TRI_SELECTED = 2'b01;
+    localparam SQR_SELECTED = 2'b10;
+    localparam SAW_SELECTED = 2'b11;
+
     reg enable_bram_clk;
 
     reg [7:0]internal_bram_address;
 
     wire [(D_W - 1):0] ram_interconnect [3:0];
 
-    // States:
-    //  0:  Load new address
-    //  1:  Output data
-    //
-    reg state;
+    assign sample_d_out = (
+                            (selected_wave == SIN_SELECTED) ?   ram_interconnect[0][(D_W - 1):0] :
+                            (selected_wave == TRI_SELECTED) ?   ram_interconnect[1][(D_W - 1):0] :
+                            (selected_wave == SQR_SELECTED) ?   ram_interconnect[2][(D_W - 1):0] : 
+                                                                ram_interconnect[3][(D_W - 1):0]
+                            );
 
     fixed_1416_sin_bram SIN_WAVETABLE
     (
@@ -62,23 +85,16 @@ module TDM_BRAM_Interface
         .bram_out(ram_interconnect[3])
     );
 
+
     initial begin
-        sample_d_out = {16{1'b0}};
-        enable_DSP_in_phase = 1'b0;
         enable_bram_clk = 1'b1;
-        state = 1'b0;
+        is_chan_en_out = 1'b0;
+        ch_assoc_w_data = 2'b00;
     end
 
-
-    always @ (posedge sys_clk) begin
-        state <= ~state;
-        if(state) begin
-            internal_bram_address <= nco_addr_in;
-        end
-        else begin
-            sample_d_out <= ram_interconnect[selected_wave];
-            enable_DSP_in_phase <= 1'b1;
-        end
+    always @ (negedge sys_clk) begin
+        is_chan_en_out <= is_chan_en;
+        ch_assoc_w_data <= channel_num;
     end
 
 endmodule
@@ -106,7 +122,7 @@ module fixed_1416_sin_bram
         $readmemh("sin_table_16x256.mem", wavetable);
     end
 
-    always @ (posedge bram_clk) begin
+    always @ (negedge bram_clk) begin
         if(bram_ce) bram_out <= wavetable[bram_addr];
     end
 endmodule
@@ -133,7 +149,7 @@ module fixed_1416_tri_bram
         $readmemh("sin_table_16x256.mem", wavetable);
     end
 
-    always @ (posedge bram_clk) begin
+    always @ (negedge bram_clk) begin
         if(bram_ce) bram_out <= wavetable[bram_addr];
     end
 endmodule
@@ -161,7 +177,7 @@ module fixed_1416_sqr_bram
         $readmemh("sin_table_16x256.mem", wavetable);
     end
 
-    always @ (posedge bram_clk) begin
+    always @ (negedge bram_clk) begin
         if(bram_ce) bram_out <= wavetable[bram_addr];
     end
 endmodule
@@ -189,7 +205,7 @@ module fixed_1416_saw_bram
         $readmemh("sin_table_16x256.mem", wavetable);
     end
 
-    always @ (posedge bram_clk) begin
+    always @ (negedge bram_clk) begin
         if(bram_ce) bram_out <= wavetable[bram_addr];
     end
 endmodule

@@ -34,7 +34,7 @@ module main_state_machine
     wire spi_accepting_writes;
 
     wire [(BYTE_W - 1):0]RXD_ADDRESS;
-    wire [(BYTE_W - 1):0]RXD_DATA;
+    wire [(BYTE_W - 1):0]RXD_0_DATA, RXD_1_DATA;
 
     reg [(BYTE_W - 1):0]TXD_DATA;
 
@@ -57,7 +57,8 @@ module main_state_machine
         .spi_address_rx(RXD_ADDRESS),
         .spi_address_rx_valid(spi_addr_present),
 
-        .spi_data_byte_rx(RXD_DATA),
+        .spi_data_byte_0_rx(RXD_0_DATA),
+        .spi_data_byte_1_rx(RXD_1_DATA),
         .spi_data_byte_rx_valid(spi_data_present),
 
         .valid_read(spi_accepting_writes),
@@ -66,15 +67,15 @@ module main_state_machine
 
 
 
-    reg [15:0]t_acc;
+    
 
     initial begin
         spi_valid_write_edge_detect = 0;
     
         TXD_DATA = {(BYTE_W){1'b0}};
 
-        t_acc = 16'h0000;
-
+        
+/*
         VOICE_0_DIV = 16'h0000;
         VOICE_1_DIV = 16'h0000;
         VOICE_2_DIV = 16'h0000;
@@ -83,6 +84,16 @@ module main_state_machine
         VOICE_5_DIV = 16'h0000;
         VOICE_6_DIV = 16'h0000;
         VOICE_7_DIV = 16'h0000;
+*/
+
+        VOICE_0_DIV = 16'h0040;
+        VOICE_1_DIV = 16'h0A38;
+        VOICE_2_DIV = 16'h0A30;
+        VOICE_3_DIV = 16'h0A28;
+        VOICE_4_DIV = 16'h0A20;
+        VOICE_5_DIV = 16'h0A18;
+        VOICE_6_DIV = 16'h0A10;
+        VOICE_7_DIV = 16'h0C00;
     end
 
     
@@ -92,14 +103,15 @@ module main_state_machine
                                         spi_accepting_writes};
 
         // detected valid write condition
-        if(spi_valid_write_edge_detect == 3'b011) begin
-        //if(valid_for_write_to_spi && spi_addr_valid) begin
+        //if(spi_valid_write_edge_detect == 3'b011) begin
+        if(spi_accepting_writes) begin
             casez (spi_bytes_recieved)
                 // Implicit Garbage on 1st byte sent back
-                6'b000000: TXD_DATA <= SPI_ACK;                                     // Send ACK
+                //6'b000000: TXD_DATA <= SPI_ACK;                                     // Send ACK
+                6'b000000: TXD_DATA <= RXD_0_DATA;
                 6'b000001: begin
                     if(RXD_ADDRESS[(BYTE_W - 1)]) begin     // Write Command
-                        t_acc <= RXD_DATA;
+                        TXD_DATA <= RXD_1_DATA;
                         /*
                         case (RXD_ADDRESS[2:0])
                             0: VOICE_0_DIV <= {RXD_DATA, VOICE_0_DIV[7:0]};
@@ -114,7 +126,7 @@ module main_state_machine
                         */
                     end
                     else begin                              // Read Command
-                        case (RXD_ADDRESS[2:0])
+                        case (RXD_ADDRESS[3:0])
                             0:  TXD_DATA <= VOICE_0_DIV[15:8];
                             1:  TXD_DATA <= VOICE_1_DIV[15:8];
                             2:  TXD_DATA <= VOICE_2_DIV[15:8];
@@ -129,15 +141,16 @@ module main_state_machine
                 6'b000010: begin
                     if(RXD_ADDRESS[(BYTE_W - 1)]) begin     // Write Command
                       //  t_acc <= {t_acc[7:0], RXD_DATA};
-                        case (RXD_ADDRESS[2:0])
-                            0: VOICE_0_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_1_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_2_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_3_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_4_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_5_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_6_DIV <= {t_acc[7:0], RXD_DATA};
-                            0: VOICE_7_DIV <= {t_acc[7:0], RXD_DATA};
+                        TXD_DATA <= RXD_1_DATA;
+                        case (RXD_ADDRESS[3:0])
+                            0: VOICE_0_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_1_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_2_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_3_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_4_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_5_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_6_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
+                            0: VOICE_7_DIV <= {RXD_0_DATA[7:0], RXD_1_DATA[7:0]};
                         endcase
                         /*
                         case (RXD_ADDRESS[2:0])
@@ -153,7 +166,7 @@ module main_state_machine
                         */
                     end
                     else begin                              // Read Command
-                        case (RXD_ADDRESS[2:0])
+                        case (RXD_ADDRESS[3:0])
                             0:  TXD_DATA <= VOICE_0_DIV[7:0];
                             1:  TXD_DATA <= VOICE_1_DIV[7:0];
                             2:  TXD_DATA <= VOICE_2_DIV[7:0];
