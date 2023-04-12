@@ -20,7 +20,7 @@ module sample_pipeline
 
     output wire [(D_W - 1):0]data_out_u16
 );
-    
+
     // Example for pipeline stage
     wire [(CHANBITS - 1):0]stage_end_chan;
     wire [(D_W - 1):0]stage_end_data;
@@ -45,6 +45,7 @@ module sample_pipeline
         .dsp_clk(dsp_clk),
         .curr_channel(stage_end_chan),
         .curr_data(stage_end_data),
+        .iscurrchan_en(stage_end_channel_is_enabled),
         .fixed_output(end_stage_fixed_output)
     );
 
@@ -72,28 +73,82 @@ module pipeline_terminal_summer
 
     input [1:0]curr_channel,
     input [(D_W - 1):0]curr_data,
-
+    input iscurrchan_en,
     output reg [(D_W - 1):0]fixed_output
 );
+    localparam MID_POINT = 16'h4000;
 
     reg [(D_W - 1 + 4):0]summ_accum;
+    reg [2:0]enabled_chan_ctr;
+
+    wire [(D_W - 1):0] normalizing_divider_outputs [0:4];
+
+
+    assign normalizing_divider_outputs[0] = MID_POINT;
+    assign normalizing_divider_outputs[1] = summ_accum;
+
+    div_by_2_active_channels
+    (
+        .in(summ_accum),
+        .out(normalizing_divider_outputs[2])
+    );
+
+    div_by_3_active_channels
+    (
+        .in(summ_accum),
+        .out(normalizing_divider_outputs[3])
+    );
+
+    div_by_4_active_channels
+    (
+        .in(summ_accum),
+        .out(normalizing_divider_outputs[4])
+    );
+
+    
 
     initial begin
         fixed_output = {D_W{1'b0}};
+        enabled_chan_ctr = 3'b000;
     end
 
 
     always @ (posedge dsp_clk) begin
+        
         case (curr_channel)
             0: begin
-                // Shift by 3 bits or /8 to normalize sum
-                fixed_output <= summ_accum[18:3];
-                summ_accum <= curr_data;
+                // Select correct normalization for the amount of recieved
+                //  valid channel samples.
+                //  That is: if we RX 3 samples between (1,0] and sum them all,
+                //      we must divide by 3 to re normalize the values
+                fixed_output <= normalizing_divider_outputs[enabled_chan_ctr];
+               
+                if(iscurrchan_en) begin
+                    enabled_chan_ctr <= 3'b001;
+                    summ_accum <= curr_data;
+                end
+                else enabled_chan_ctr <= 3'b000;
+
             end
 
-            1:  summ_accum <= summ_accum + curr_data;
-            2:  summ_accum <= summ_accum + curr_data;
-            3:  summ_accum <= summ_accum + curr_data;
+            1:  begin
+                if(iscurrchan_en) begin
+                    summ_accum <= summ_accum + curr_data;
+                    enabled_chan_ctr <= enabled_chan_ctr + 1;
+                end
+            end
+            2:  begin
+                if(iscurrchan_en) begin
+                    summ_accum <= summ_accum + curr_data;
+                    enabled_chan_ctr <= enabled_chan_ctr + 1;
+                end
+            end
+            3:  begin
+                if(iscurrchan_en) begin
+                    summ_accum <= summ_accum + curr_data;
+                    enabled_chan_ctr <= enabled_chan_ctr + 1;
+                end
+            end
         endcase
     end
 endmodule
@@ -176,4 +231,47 @@ module address_only_pipe_register
         chan_out <= chan_in;
         out_channel_is_enabled <= in_channel_is_enabled;
     end
+endmodule
+
+
+
+
+
+module div_by_2_active_channels
+#(
+    parameter D_W = 16
+)
+(
+    input [(D_W - 1):0]in,
+    output [(D_W - 1):0]out
+);
+    // >> 1
+    assign out = {1'b0, in[(D_W - 1):1]};
+endmodule
+
+module div_by_3_active_channels
+#(
+    parameter D_W = 16
+)
+(
+    input [(D_W - 1):0]in,
+    output [(D_W - 1):0]out
+);
+    // X / 3 = (X >> 1) + (X >> 6) - (X >> 3) - (X >> 4)
+    assign out =    (({1'b0, in[(D_W - 1):1]} + 
+                    {6'b000000, in[(D_W - 1):6]}) -
+                    ({3'b000, in[(D_W - 1):3]} +
+                    {4'b0000, in[(D_W - 1):4]}));
+endmodule
+
+module div_by_4_active_channels
+#(
+    parameter D_W = 16
+)
+(
+    input [(D_W - 1):0]in,
+    output [(D_W - 1):0]out
+);
+    // >> 2
+    assign out = {2'b00, in[(D_W - 1):2]};
 endmodule
