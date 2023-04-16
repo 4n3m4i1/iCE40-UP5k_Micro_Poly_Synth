@@ -2,12 +2,16 @@
 #include <math.h>
 #include <stdint.h>
 
+// Uncomment for use with real table generation
+#define FOR_USE
 // actually fix15_u16 now for unsigned centered on 2^15
 
 #define _USE_MATH_DEFINES
 
 #define NUM_BITS    16
 #define NUM_SAMPLES 256
+
+#define FL_SCALAR  65535.0 / 65536.0
 
 #define SHAMT           15  // initially 15
 //#define FL_CVT_CONST    16384.0 // prev 32768.0
@@ -49,11 +53,14 @@ int main(){
 
     for(int n = 0; n < NUM_SAMPLES; n++){
 
-        float sam = (float)(sin((2.0 * M_PI * (double)n) / (double)NUM_SAMPLES));
+        float sam = (float)(FL_SCALAR * sin((2.0 * M_PI * (double)n) / (double)NUM_SAMPLES));
 
-
+#ifdef FOR_USE
         fprintf(file, "%04X", float2fix15_u16(0.5f * (sam + 1.0)));
+#else
         //fprintf(file, "%u", float2fix15_u16(0.5f * (sam + 1.0)));
+        fprintf(file, "%u", float2fix15_u16((sam + 1.0)));
+#endif
         if(n != NUM_SAMPLES - 1){
             fprintf(file, "\n");
         }
@@ -77,20 +84,20 @@ int main(){
 */
     // 21845 == 0x5555
     //C = (fix15_u16)(((uint32_t)C * 21845) >> SHAMT);
-    
+
     //fix15_u16 T1 = C >> 2;
     //fix15_u16 T2 = C >> 3;
 
     //C = T1 + T1;
-    
-    // 0.5x - 0.125x 
+
+    // 0.5x - 0.125x
  //   C = (C >> 1) - (C >> 3) - (C >> 4) + (C >> 6);
 
     // C/3 = 0.5C - 0.125C - 0.0625C + 0.01625C
     // 0.5% off
 /*
     printf("CVT = 0x%04X == %u\n", float2fix15_u16(fv), float2fix15_u16(fv));
-    
+
     printf("B = 0x%04X == %u\n", B, B);
 
     printf("C = 0x%04X == %u\n", C, C);

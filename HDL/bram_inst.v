@@ -29,11 +29,13 @@ module TDM_BRAM_Interface
     input is_chan_en,
     input [1:0]channel_num,
 
-    output wire [(D_W - 1):0]sample_d_out,
+    output reg [(D_W - 1):0]sample_d_out,
 
     output reg is_chan_en_out,
     output reg [1:0]ch_assoc_w_data
 );
+    reg is_chan_en_buff;
+    reg [1:0]ch_association_buff;
 
     localparam SIN_SELECTED = 2'b00;
     localparam TRI_SELECTED = 2'b01;
@@ -44,21 +46,17 @@ module TDM_BRAM_Interface
 
     reg [7:0]internal_bram_address;
 
-    wire [(D_W - 1):0] ram_interconnect [3:0];
-
-    assign sample_d_out = (
-                            (selected_wave == SIN_SELECTED) ?   ram_interconnect[0][(D_W - 1):0] :
-                            (selected_wave == TRI_SELECTED) ?   ram_interconnect[1][(D_W - 1):0] :
-                            (selected_wave == SQR_SELECTED) ?   ram_interconnect[2][(D_W - 1):0] : 
-                                                                ram_interconnect[3][(D_W - 1):0]
-                            );
+    wire [(D_W - 1):0] sin_output;
+    wire [(D_W - 1):0] tri_output;
+    wire [(D_W - 1):0] sqr_output;
+    wire [(D_W - 1):0] saw_output;
 
     fixed_1416_sin_bram SIN_WAVETABLE
     (
         .bram_clk(sys_clk),
         .bram_ce(enable_bram_clk),
         .bram_addr(internal_bram_address),
-        .bram_out(ram_interconnect[0])
+        .bram_out(sin_output)
     );
 
     fixed_1416_tri_bram TRI_WAVETABLE
@@ -66,7 +64,7 @@ module TDM_BRAM_Interface
         .bram_clk(sys_clk),
         .bram_ce(enable_bram_clk),
         .bram_addr(internal_bram_address),
-        .bram_out(ram_interconnect[1])
+        .bram_out(tri_output)
     );
 
     fixed_1416_sqr_bram sqr_WAVETABLE
@@ -74,7 +72,7 @@ module TDM_BRAM_Interface
         .bram_clk(sys_clk),
         .bram_ce(enable_bram_clk),
         .bram_addr(internal_bram_address),
-        .bram_out(ram_interconnect[2])
+        .bram_out(sqr_output)
     );
 
     fixed_1416_saw_bram SAW_WAVETABLE
@@ -82,7 +80,7 @@ module TDM_BRAM_Interface
         .bram_clk(sys_clk),
         .bram_ce(enable_bram_clk),
         .bram_addr(internal_bram_address),
-        .bram_out(ram_interconnect[3])
+        .bram_out(saw_output)
     );
 
 
@@ -90,11 +88,38 @@ module TDM_BRAM_Interface
         enable_bram_clk = 1'b1;
         is_chan_en_out = 1'b0;
         ch_assoc_w_data = 2'b00;
+
+        ch_association_buff = 2'b00;
+        is_chan_en_buff = 1'b0;
+
+        sample_d_out = {D_W{1'b0}};
     end
 
-    always @ (negedge sys_clk) begin
-        is_chan_en_out <= is_chan_en;
-        ch_assoc_w_data <= channel_num;
+/*
+module state operation:
+    CLK #   EDGE    DESC
+    0       RISING      RAM ADDR LOAD
+    0       FALLING     RAM DAT READY
+    1       RISING      RAM DAT OUTPUT, NEW LOAD
+
+There are 2 cycles of effective pipe delay here
+*/
+
+    always @ (posedge sys_clk) begin
+        //Stage 0, ingest address and enable info
+        internal_bram_address <= nco_addr_in;
+        is_chan_en_buff <= is_chan_en;
+        ch_association_buff <= channel_num;
+
+        // Stage 1, output data and channel information
+        is_chan_en_out  <= is_chan_en_buff;
+        ch_assoc_w_data <= ch_association_buff;
+        case (ch_association_buff) begin
+            SIN_SELECTED: sample_d_out <= sin_output;
+            TRI_SELECTED: sample_d_out <= tri_output;
+            SQR_SELECTED: sample_d_out <= sqr_output;
+            SAW_SELECTED: sample_d_out <= saw_output;
+        end
     end
 
 endmodule
@@ -146,7 +171,7 @@ module fixed_1416_tri_bram
 
     initial begin
         //$readmemh("tri_table_16x256.mem", wavetable);
-        $readmemh("sin_table_16x256.mem", wavetable);
+        $readmemh("tri_table_16x256.mem", wavetable);
     end
 
     always @ (negedge bram_clk) begin
@@ -174,7 +199,7 @@ module fixed_1416_sqr_bram
 
     initial begin
         //$readmemh("sqr_table_16x256.mem", wavetable);
-        $readmemh("sin_table_16x256.mem", wavetable);
+        $readmemh("sqr_table_16x256.mem", wavetable);
     end
 
     always @ (negedge bram_clk) begin
@@ -202,7 +227,7 @@ module fixed_1416_saw_bram
 
     initial begin
         //$readmemh("saw_table_16x256.mem", wavetable);
-        $readmemh("sin_table_16x256.mem", wavetable);
+        $readmemh("saw_table_16x256.mem", wavetable);
     end
 
     always @ (negedge bram_clk) begin
