@@ -114,12 +114,12 @@ There are 2 cycles of effective pipe delay here
         // Stage 1, output data and channel information
         is_chan_en_out  <= is_chan_en_buff;
         ch_assoc_w_data <= ch_association_buff;
-        case (ch_association_buff) begin
+        case (ch_association_buff)
             SIN_SELECTED: sample_d_out <= sin_output;
             TRI_SELECTED: sample_d_out <= tri_output;
             SQR_SELECTED: sample_d_out <= sqr_output;
             SAW_SELECTED: sample_d_out <= saw_output;
-        end
+        endcase
     end
 
 endmodule

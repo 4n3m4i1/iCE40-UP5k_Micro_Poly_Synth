@@ -87,19 +87,19 @@ module pipeline_terminal_summer
     assign normalizing_divider_outputs[0] = MID_POINT;
     assign normalizing_divider_outputs[1] = summ_accum;
 
-    div_by_2_active_channels
+    div_by_2_active_channels d2
     (
         .in(summ_accum),
         .out(normalizing_divider_outputs[2])
     );
 
-    div_by_3_active_channels
+    div_by_3_active_channels d3
     (
         .in(summ_accum),
         .out(normalizing_divider_outputs[3])
     );
 
-    div_by_4_active_channels
+    div_by_4_active_channels d4
     (
         .in(summ_accum),
         .out(normalizing_divider_outputs[4])
@@ -242,7 +242,7 @@ module div_by_2_active_channels
     parameter D_W = 16
 )
 (
-    input [(D_W - 1):0]in,
+    input [(D_W + 3):0]in,
     output [(D_W - 1):0]out
 );
     // >> 1
@@ -254,7 +254,7 @@ module div_by_3_active_channels
     parameter D_W = 16
 )
 (
-    input [(D_W - 1):0]in,
+    input [(D_W + 3):0]in,
     output [(D_W - 1):0]out
 );
     // X / 3 = (X >> 1) + (X >> 6) - (X >> 3) - (X >> 4)
@@ -269,7 +269,7 @@ module div_by_4_active_channels
     parameter D_W = 16
 )
 (
-    input [(D_W - 1):0]in,
+    input [(D_W + 3):0]in,
     output [(D_W - 1):0]out
 );
     // >> 2
