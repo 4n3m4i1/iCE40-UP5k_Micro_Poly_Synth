@@ -112,8 +112,15 @@ module single_midi_in
             OA_CLR_FLAGS: begin                 // 0x06
                 DATA_READY <= 1'b0;
                 oa_state <= OA_IDLE;
+                
             end
-            OA_DELAY: oa_state <= oa_state + 1;     // 0x07
+            OA_DELAY: begin
+                oa_state <= oa_state + 1;     // 0x07
+
+//                MIDI_CMD    <= {BYTE_W{1'b0}};
+//                MIDI_DAT_0  <= {BYTE_W{1'b0}};
+ //               MIDI_DAT_1  <= {BYTE_W{1'b0}};
+            end
         endcase
     end 
 endmodule

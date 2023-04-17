@@ -30,13 +30,13 @@ module simple_nco
                 nco_ctr <= nco_ctr + 1;
                 buffered_div <= nco_div;
                 
-                if(nco_ctr >= buffered_div) note_state <= 1'b1;
+                if(nco_ctr > buffered_div) note_state <= !note_state;
             end
 
             1: begin
                 nco_ctr <= 16'h0000;
                 nco_addr <= nco_addr + 1;
-                note_state <= 1'b0;
+                note_state <= !note_state;
             end
         endcase
     end

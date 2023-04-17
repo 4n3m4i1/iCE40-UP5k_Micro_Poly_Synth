@@ -16,8 +16,8 @@
 module TDM_BRAM_Interface
 #(
     parameter D_W = 16,
-    parameter VOICES = 8,
-    parameter VOICES_BITS = 3
+    parameter VOICES = 4,
+    parameter VOICES_BITS = 2
 )
 (
     input sys_clk,
@@ -34,9 +34,11 @@ module TDM_BRAM_Interface
     output reg is_chan_en_out,
     output reg [1:0]ch_assoc_w_data
 );
-    reg is_chan_en_buff;
-    reg [1:0]ch_association_buff;
+    reg is_chan_en_buff_0;
+    reg [1:0]ch_association_buff_0;
+    reg [1:0]wavesel_buff;
 
+    
     localparam SIN_SELECTED = 2'b00;
     localparam TRI_SELECTED = 2'b01;
     localparam SQR_SELECTED = 2'b10;
@@ -85,14 +87,15 @@ module TDM_BRAM_Interface
 
 
     initial begin
-        enable_bram_clk = 1'b1;
-        is_chan_en_out = 1'b0;
-        ch_assoc_w_data = 2'b00;
+        enable_bram_clk     = 1'b1;
+        is_chan_en_out      = 1'b0;
+        ch_assoc_w_data     = 2'b00;
 
-        ch_association_buff = 2'b00;
-        is_chan_en_buff = 1'b0;
+        wavesel_buff            = 2'b00;
+        ch_association_buff_0   = 2'b00;
+        is_chan_en_buff_0       = 1'b0;
 
-        sample_d_out = {D_W{1'b0}};
+        sample_d_out        = {(D_W){1'b0}};
     end
 
 /*
@@ -108,18 +111,21 @@ There are 2 cycles of effective pipe delay here
     always @ (posedge sys_clk) begin
         //Stage 0, ingest address and enable info
         internal_bram_address <= nco_addr_in;
-        is_chan_en_buff <= is_chan_en;
-        ch_association_buff <= channel_num;
+        is_chan_en_buff_0 <= is_chan_en;
+        ch_association_buff_0 <= channel_num;
+        wavesel_buff <= selected_wave;
 
         // Stage 1, output data and channel information
-        is_chan_en_out  <= is_chan_en_buff;
-        ch_assoc_w_data <= ch_association_buff;
-        case (ch_association_buff)
+        is_chan_en_out  <= is_chan_en_buff_0;
+        ch_assoc_w_data <= ch_association_buff_0;
+
+        case (wavesel_buff)
             SIN_SELECTED: sample_d_out <= sin_output;
             TRI_SELECTED: sample_d_out <= tri_output;
             SQR_SELECTED: sample_d_out <= sqr_output;
             SAW_SELECTED: sample_d_out <= saw_output;
         endcase
+    
     end
 
 endmodule

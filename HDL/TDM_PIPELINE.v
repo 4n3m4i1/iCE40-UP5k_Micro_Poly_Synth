@@ -28,28 +28,42 @@ module TDM_PIPELINE
     input TDM_CHANNEL_IS_EN,
 
     output reg [(D_W - 1):0]TDM_DATA_OUTPUT
+    //output [(D_W - 1):0]TDM_DATA_SUMMED
 );
 
 
+/*
+    // Pre pipeline processing to remove invalid samples
+    wire [(D_W - 1):0]CLEANED_TDM_STREAM;
+    wire CLEANED_TDM_ENABLE;
+    wire [(VOICE_BITS - 1):0]CLEANED_TDM_CHANNEL;
+    insert_zero_sample disabled_channel_data_rejection
+    (
+        .sys_clk(sys_clk),
+        .sample_din(BUFFDAT0),
+        .is_chan_enabled(BUFFEN0),
+        .vin(BUFFCHANNUM0),
+        .sample_dout(CLEANED_TDM_STREAM),
+        .sample_enabled(CLEANED_TDM_ENABLE),
+        .vout(CLEANED_TDM_CHANNEL)
+    );
+*/
 
-
-
-
-/////////////////////////////////////////////////////
-//              END OF PIPELINE SUMMATION
-//                  AND NORMALIZATION
-/////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////
+    //              END OF PIPELINE SUMMATION
+    //                  AND NORMALIZATION
+    /////////////////////////////////////////////////////
     wire [(D_W - 1):0]TDM_DATA_SUMMED;
     TDM_TERMINAL_SUMMER END_OF_THE_LINE
     (
         .sys_clk(sys_clk),
-        .terminal_input(),      // D_W
-        .is_voice_enabled(),
+        .terminal_input(TDM_DATA_INPUT),      // D_W
+        .is_voice_enabled(TDM_CHANNEL_IS_EN),
 
         .terminal_output(TDM_DATA_SUMMED)
     );
 
-/////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////
     initial begin
         TDM_DATA_OUTPUT = {D_W{1'b0}};
     end
@@ -57,10 +71,15 @@ module TDM_PIPELINE
     always @ (posedge sys_clk) begin
         TDM_DATA_OUTPUT <= TDM_DATA_SUMMED;
     end
-end
+endmodule
 
 
-
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+//              MODULES IN PIPELINE
+////////////////////////////////////////////////////////////
 
 module TDM_TERMINAL_SUMMER
 #(
@@ -75,30 +94,15 @@ module TDM_TERMINAL_SUMMER
     output reg [(D_W - 1):0]terminal_output
 );
 
-    reg [(D_W + 3):0] accum_20_bit, post_process_accum;
-    reg [(VOICE_BITS - 1):0]sample_ctr, sample_ct_buffer;
+    reg [(D_W + 3):0] accum_20_bit;
+
     reg [(VOICE_BITS - 1):0]clk_ctr;
-
-    reg [(D_W - 1):0]div_3_term_0, div_3_term_1;
-
-    reg [(D_W - 1):0]div_1_res, div_2_res, div_3_res, div_4_res;
 
     initial begin
         terminal_output     = {D_W{1'b0}};
         accum_20_bit        = {(D_W + 4){1'b0}};
-        post_process_accum  = {(D_W + 4){1'b0}};
-
+        
         clk_ctr         = {VOICE_BITS{1'b0}};
-        sample_ctr      = {VOICE_BITS{1'b0}};
-        sample_ct_buffer= {VOICE_BITS{1'b0}};
-
-        div_3_term_0    = {D_W(1'b0)};
-        div_3_term_1    = {D_W(1'b0)};
-
-        div_1_res       = {D_W(1'b0)};
-        div_2_res       = {D_W(1'b0)};
-        div_3_res       = {D_W(1'b0)};
-        div_4_res       = {D_W(1'b0)};
     end
 
 /*
@@ -120,57 +124,87 @@ module TDM_TERMINAL_SUMMER
 
         case (clk_ctr)
             0: begin
-                post_process_accum <= accum_20_bit;
-                
-                sample_ct_buffer <= sample_ctr;
-
-                if(is_voice_enabled) begin
-                    sample_ctr <= sample_ctr + 1;
-                    accum_20_bit <= {4'h0, terminal_input};
-                end
-                else    accum_20_bit <= {(D_W + 4){1'b0}};
-
-                div_3_term_0 <= accum_20_bit[16:1];
-                div_3_term_1 <= accum_20_bit[18:3];
+                accum_20_bit <= terminal_input;
+                terminal_output <= accum_20_bit[17:2];
             end
-
-            1: begin
-                if(is_voice_enabled) begin
-                    sample_ctr <= sample_ctr + 1;
-                    accum_20_bit <= accum_20_bit + {4'h0, terminal_input};
-                end
-
-                div_3_term_0 <= div_3_term_0 + {3'b000, post_process_accum[19:6]};
-                div_3_term_1 <= div_3_term_1 + post_process_accum[19:4];
-            end
-
-            2: begin
-                if(is_voice_enabled) begin
-                    sample_ctr <= sample_ctr + 1;
-                    accum_20_bit <= accum_20_bit + {4'h0, terminal_input};
-                end
-                
-                div_1_res <= accum_20_bit[15:0];
-                div_2_res <= accum_20_bit[16:1];
-                div_3_res <= div_3_term_0 - div_3_term_1;
-                div_4_res <= accum_20_bit[17:2];
-            end
-
-            3: begin
-                if(is_voice_enabled) begin
-                    sample_ctr <= sample_ctr + 1;
-                    accum_20_bit <= accum_20_bit + {4'h0, terminal_input};
-                end
-
-
-                case(sample_ct_buffer)
-                    0:  terminal_output <= div_1_res;
-                    1:  terminal_output <= div_2_res;
-                    2:  terminal_output <= div_3_res;
-                    3:  terminal_output <= div_4_res;
-                endcase
-
-            end
+            1: accum_20_bit <= accum_20_bit + terminal_input;
+            2: accum_20_bit <= accum_20_bit + terminal_input;
+            3: accum_20_bit <= accum_20_bit + terminal_input;
         endcase
+
     end
+endmodule
+
+
+
+module insert_zero_sample
+#(
+    parameter D_W = 16,
+    parameter VOICE_BITS = 2
+)
+(
+    input sys_clk,
+    input [(D_W - 1):0]sample_din,
+    input [(VOICE_BITS - 1):0]vin,
+    input is_chan_enabled,
+
+    output reg [(D_W - 1):0]sample_dout,
+    output reg sample_enabled,
+    output reg [(VOICE_BITS - 1):0]vout
+);
+
+    reg [(D_W - 1):0]t_zero;
+
+    initial begin
+        t_zero = {D_W{1'b0}};
+        sample_dout = {D_W {1'b0}};
+        sample_enabled = 1'b0;
+        vout = {VOICE_BITS{1'b0}};
+    end
+
+
+    always @ (posedge sys_clk) begin
+        if(is_chan_enabled) sample_dout <= sample_din;
+        else sample_dout <= t_zero;
+
+        sample_enabled <= is_chan_enabled;
+        vout <= vin;
+    end
+endmodule
+
+
+
+
+
+module full_TDM_pipe_register
+#(
+    parameter D_W = 16,
+    parameter VOICE_BITS = 2
+)
+(
+    input sys_clk,
+
+    input en_i,
+    input [(VOICE_BITS - 1):0]vin,
+    input [(D_W - 1):0]din,
+
+    output reg [(D_W - 1):0]dout,
+    output reg [(VOICE_BITS - 1):0]vout,
+    output reg en_o
+);
+
+
+
+    initial begin
+        dout = {D_W {1'b0}};
+        vout = {VOICE_BITS{1'b0}};
+        en_o = 1'b0;
+    end
+
+    always @ (posedge sys_clk) begin
+        dout <= din;
+        vout <= vin;
+        en_o <= en_i;
+    end
+
 endmodule

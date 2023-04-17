@@ -5,8 +5,9 @@ module midi_ctrl_unit
 #(
     parameter D_W = 16,
     parameter BYTE_W = 8,
+    parameter ADDR_W = 8,
     parameter NUM_VOICES = 4,
-    parameter VOICE_BITS = 2;
+    parameter VOICE_BITS = 2
 )
 (
     input sys_clk,
@@ -20,6 +21,8 @@ module midi_ctrl_unit
     output reg [(D_W - 1):0]        midi_chan_divider,         // Note
     output reg [(BYTE_W - 1):0]     midi_chan_velocity,     // Velocity
 
+    output reg [1:0]                midi_chan_wave,     // Waveform, from control update
+    output reg midi_wave_update,
 
     output reg midi_chan_update,                        // Updates ADSR with velocity
     output reg midi_phase_update
@@ -28,13 +31,14 @@ module midi_ctrl_unit
     localparam FLAG_CLR                     = 1'b0;
 
     // Overall State Parameters
-    localparam RESET_RDY_FLAGS              = 4'h0;
-    localparam WAIT_FOR_NEW_MIDI_PACKET     = 4'h1;
-
+    localparam STALL_FLAGS                  = 4'h0;
+    localparam RESET_RDY_FLAGS              = 4'h1;
+    localparam WAIT_FOR_NEW_MIDI_PACKET     = 4'h2;
+    localparam FIGURE_OUT_CMD_BYTE_STATE    = 4'h3;
 
     // MIDI Command Byte Parameters & 3'b111, lead bit unneeded
-    localparam CMD_NOTE_OFF                 = 4'h8;
-    localparam CMD_NOTE_ON                  = 4'h9;
+    localparam CMD_NOTE_OFF                 = 4'h8; // should be 8
+    localparam CMD_NOTE_ON                  = 4'h9; // should be 9
     localparam CMD_POLY_PRESSURE            = 4'hA;
     localparam CMD_CTRL_CHANGE              = 4'hB;
     localparam CMD_PROG_CHANGE              = 4'hC;
@@ -67,7 +71,11 @@ module midi_ctrl_unit
         midi_chan_update    = FLAG_CLR;
         midi_phase_update   = FLAG_CLR;
 
+        midi_wave_update    = FLAG_CLR;
+        midi_chan_wave      = 2'b00;
+
         midi_chan_velocity  = {BYTE_W{1'b0}};
+
 
         midi_cmd_buffer     = {BYTE_W{1'b0}};
         midi_da0_buffer     = {BYTE_W{1'b0}};
@@ -76,9 +84,12 @@ module midi_ctrl_unit
 
     always @ (posedge sys_clk) begin
         case (oa_state)
+            STALL_FLAGS: oa_state   <= RESET_RDY_FLAGS;
+
             RESET_RDY_FLAGS: begin
                 midi_chan_update    <= FLAG_CLR;
                 midi_phase_update   <= FLAG_CLR;
+                midi_wave_update    <= FLAG_CLR;
                 oa_state            <= WAIT_FOR_NEW_MIDI_PACKET;
             end
 
@@ -89,9 +100,14 @@ module midi_ctrl_unit
                     midi_da1_buffer <= MIDI_DAT_1;
 
                     // Select command from byte
-                    oa_state        <= midi_cmd_buffer[7:4];
+                    oa_state        <= FIGURE_OUT_CMD_BYTE_STATE;
                     note_number     <= MIDI_DAT_0;
                 end
+            end
+
+            FIGURE_OUT_CMD_BYTE_STATE: begin
+                oa_state        <= midi_cmd_buffer[7:4];
+                //note_number     <= midi_da0_buffer;
             end
 
             
@@ -100,26 +116,33 @@ module midi_ctrl_unit
                 midi_chan_divider   <= 16'h0000;
                 midi_chan_update    <= FLAG_SET;
             
-                oa_state            <= RESET_RDY_FLAGS;
+                oa_state            <= STALL_FLAGS;
             end
             
             CMD_NOTE_ON: begin
                 midi_chan_selected  <= midi_cmd_buffer[(VOICE_BITS - 1):0];
-                if(|midi_da0_buffer) midi_chan_divider <= note_div_out;
+                if(midi_da0_buffer != 0) midi_chan_divider <= note_div_out;
                 else midi_chan_divider <= 16'h0000; //Handle 0 note as turning voice off
                 midi_chan_update    <= FLAG_SET;
 
-                oa_state            <= RESET_RDY_FLAGS;
+                oa_state            <= STALL_FLAGS;
             end
 
-/*
-            CMD_POLY_PRESSURE:
-            CMD_CTRL_CHANGE:
-            CMD_PROG_CHANGE:
-            CMD_CHAN_PRESSURE:
-            CMD_PITCH_BEND:
-            CMD_SYSTEM_MESSAGE:
-*/          
+
+//            CMD_POLY_PRESSURE:
+            CMD_CTRL_CHANGE: begin
+                midi_chan_selected  <= midi_cmd_buffer[(VOICE_BITS - 1):0];
+
+                midi_chan_wave      <= midi_da1_buffer[1:0]; // Send wave as 2nd byte
+
+                midi_wave_update    <= FLAG_SET;
+                oa_state            <= STALL_FLAGS;
+            end
+//            CMD_PROG_CHANGE:
+//            CMD_CHAN_PRESSURE:
+//            CMD_PITCH_BEND:
+//            CMD_SYSTEM_MESSAGE:
+          
 
             default: oa_state       <= RESET_RDY_FLAGS;
         endcase
