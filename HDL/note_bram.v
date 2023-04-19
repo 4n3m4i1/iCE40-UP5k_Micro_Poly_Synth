@@ -19,7 +19,7 @@ module note_LUT
     reg [(D_W - 1):0] noteLUT [(NUM_SAMPLES - 1):0];
 
     initial begin
-        $readmemh("midi_note_table.mem", noteLUT);
+        $readmemh("note_bram_24MHz.mem", noteLUT);
     end
 
     always @ (posedge bram_clk) begin
