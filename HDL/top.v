@@ -35,14 +35,14 @@ module top
     assign gpio_31 = dbg_div[0];
 
 
-    wire clk_48M;               // Main 48MHz Clk
+    wire clk_24M;               // Main 48 / 2 = 24MHz Clk
     SB_HFOSC inthfosc
     (
         .CLKHFEN(1'b1),
         .CLKHFPU(1'b1),
-        .CLKHF(clk_48M)
+        .CLKHF(clk_24M)
     );
-    defparam inthfosc.CLKHF_DIV = "0b00";
+    defparam inthfosc.CLKHF_DIV = "0b01";
 
 
 ////////////////////////////////////////////////////////////
@@ -55,7 +55,7 @@ module top
 
     midi_interface_adapter MIDI_LOW_LEVEL
     (
-        .sys_clk(clk_48M),
+        .sys_clk(clk_24M),
         .MIDI_IN(gpio_26),
         .MIDI_CMD(CMD_INTER),
         .MIDI_DAT_0(D0_INTER),
@@ -71,7 +71,7 @@ module top
     wire [1:0]midi_wave_data;
     midi_ctrl_unit MIDI_HIGH_LEVEL
     (
-        .sys_clk(clk_48M),
+        .sys_clk(clk_24M),
         .MIDI_CMD(CMD_INTER),
         .MIDI_DAT_0(D0_INTER),
         .MIDI_DAT_1(D1_INTER),
@@ -101,7 +101,7 @@ module top
     wire [7:0]tdm_address;
     voices NCO_AND_PHASE_CONTROL
     (
-        .sys_clk(clk_48M),
+        .sys_clk(clk_24M),
         .midi_modified_channel(ch_sel_0),
         .midi_modified_divider(div_sel_0),
         .midi_chan_modified_strobe(update_channel_div),
@@ -126,7 +126,7 @@ module top
     wire [1:0]pipeline_channel_num;
     TDM_BRAM_Interface WAVETABLE_ACCESS
     (
-        .sys_clk(clk_48M),
+        .sys_clk(clk_24M),
         .selected_wave(tdm_wavesel),
         .nco_addr_in(tdm_address),
         .is_chan_en(tdm_voice_enabled),
@@ -147,7 +147,7 @@ module top
     wire [(D_W - 1):0]DAC_DATA_FROM_PIPELINE;
     TDM_PIPELINE PIPELINE_0
     (
-        .sys_clk(clk_48M),
+        .sys_clk(clk_24M),
         //.TDM_CHANNEL_NUM(pipeline_channel_num),
         .TDM_DATA_INPUT(pipeline_data_from_bram),
         .TDM_CHANNEL_IS_EN(pipeline_channel_enabled),
@@ -163,7 +163,7 @@ module top
 // Final output DAC
     fods_mod DDS_DAC_OUT
     (
-        .mod_clk(clk_48M),
+        .mod_clk(clk_24M),
         .mod_din(DAC_DATA_FROM_PIPELINE),
         .mod_dout(gpio_3)
     );
