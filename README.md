@@ -1,7 +1,9 @@
 # iCE40-UP5k Micro Poly Synth
-A multi voice polyphonic synth that can be interfaced via many methods.  
-Notably I do not have devices with MIDI interfaces available at the moment  
-thus interfacing is done via a SPI interface with an RP2040.  
+A super teeny 4 voice polyphonic wavetable synth.  
+Generally compliant with common MIDI messages that matter.  
+  
+Sin, tri, square, saw all supported and can be applied individually to any
+voice. All MIDI notes supported.
 
 ## Software and Build  
 HDL is intended for use (lint, build, upload) with the open source Project Icestorm  
