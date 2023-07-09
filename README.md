@@ -15,7 +15,7 @@ process.
   
 ## Hardware
 The upduino-3.1 and Raspberry Pi Pico development boards are used.  
-These are tied together with a standard 4 wire SPI interface.  
+These are tied together with a standard MIDI (one wire UART) interface.  
   
 In terms of keyboard interface, something something something  
   
