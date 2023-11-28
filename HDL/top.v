@@ -6,34 +6,43 @@ module top
     parameter D_W = 16
 )
 (
-    input gpio_26,              // MIDI D IN
+    input UART_RX,              // MIDI D IN
 
-    output wire gpio_3,         // DAC Out
+    output wire UI_GPIO_0,         // DAC Out
 
-    // Debug LED Bar Graph
-    output wire gpio_28,        // MSB
-    output wire gpio_38,
-    output wire gpio_42,
-    output wire gpio_36,
+    output wire UI_ULEDSR_CLK,
+    output wire UI_ULEDSR_DIN
 
-    output wire gpio_43,
-    output wire gpio_34,
-    output wire gpio_37,
-    output wire gpio_31         // LSB
 );
 
     wire [7:0]dbg_div;
  //   wire enable_0;
 
-    assign gpio_28 = dbg_div[7];
-    assign gpio_38 = dbg_div[6];
-    assign gpio_42 = dbg_div[5];
-    assign gpio_36 = dbg_div[4];
-    assign gpio_43 = dbg_div[3];
-    assign gpio_34 = dbg_div[2];
-    assign gpio_37 = dbg_div[1];
-    assign gpio_31 = dbg_div[0];
-
+/*
+module sw2ledarray
+#(
+    parameter LED_HZ        = 1000,
+    parameter SYSCLK_F      = 12000000,
+    parameter LED_SHIFT_HZ  = 2000000,
+    parameter DIMMING_STEPS = 256
+)
+(
+    input                   sys_clk,
+    input                   [(LED_CT - 1):0] data,
+    
+    output reg              led_do,
+    output reg              led_clk
+);
+*/
+    sw2ledarray 
+    #(
+        .SYSCLK_F(24000000)
+    ) swee (
+        .sys_clk(clk_24M),
+        .data(dbg_div),
+        .led_do(UI_ULEDSR_DIN),
+        .led_clk(UI_ULEDSR_CLK)
+    );
 
     wire clk_24M;               // Main 48 / 2 = 24MHz Clk
     SB_HFOSC inthfosc
@@ -56,7 +65,7 @@ module top
     midi_interface_adapter MIDI_LOW_LEVEL
     (
         .sys_clk(clk_24M),
-        .MIDI_IN(gpio_26),
+        .MIDI_IN(UART_RX),
         .MIDI_CMD(CMD_INTER),
         .MIDI_DAT_0(D0_INTER),
         .MIDI_DAT_1(D1_INTER),
@@ -165,7 +174,7 @@ module top
     (
         .mod_clk(clk_24M),
         .mod_din(DAC_DATA_FROM_PIPELINE),
-        .mod_dout(gpio_3)
+        .mod_dout(UI_GPIO_0)
     );
 
 endmodule
