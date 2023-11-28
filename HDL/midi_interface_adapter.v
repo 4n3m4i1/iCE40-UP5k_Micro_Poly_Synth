@@ -5,7 +5,7 @@ module midi_interface_adapter
 #(
     parameter D_W = 16,
     parameter BYTE_W = 8,
-    parameter SYSCLK_F = 48000000
+    parameter SYSCLK_F = 24000000
 )
 (
     input sys_clk,

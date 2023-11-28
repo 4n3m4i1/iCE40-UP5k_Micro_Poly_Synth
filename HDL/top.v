@@ -7,6 +7,7 @@ module top
 )
 (
     input UART_RX,              // MIDI D IN
+    output wire UART_TX,
 
     output wire UI_GPIO_0,         // DAC Out
 
@@ -14,6 +15,7 @@ module top
     output wire UI_ULEDSR_DIN
 
 );
+    assign UART_TX = UART_RX;
 
     wire [7:0]dbg_div;
  //   wire enable_0;
